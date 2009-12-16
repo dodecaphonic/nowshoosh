@@ -1,5 +1,5 @@
-// Now shoosh!, v0.6
-// Copyright (c) 2008-2009, Vitor Peres
+// Now shoosh!, v0.6.1
+// Copyright (c) 2008-2009, Vitor Peres <dodecaphonic@gmail.com>
 // Released under the GPL license
 // http://www.gnu.org/copyleft/gpl.html
 // Updated: Thu May 28 20:11:26 2009
@@ -54,7 +54,8 @@
    var jQuery = realWindow.jQuery,
    $ = jQuery;
 
-   var shooshable = {};
+   var shooshable = {},
+   listCreated = false;
 
    function contactsInTimeline(timeline) {
      return timeline.map(function(i, toot) {
@@ -129,7 +130,16 @@
    }
 
    function findShooshedInTimeline(contacts) {
-     return contacts.filter(function(c) { return isShooshed(contacts[c]); });
+     var temp = [];
+     // This is silly. There's some closure bug here that prevents
+     // me from calling retrieveShooshedContacts from within the
+     // iteration function. It always comes out as undefined, instead
+     // of an array, as the function states. I don't want to deal
+     // with it so badly right now, but I'll check it out later.
+     contacts.each(function(i, v) {
+                     temp.push(v);
+                   });
+     return temp.filter(function(c) { return isShooshed(c); });
    }
 
    function addContactToShooshedDisplayList(contact, img_url) {
@@ -150,11 +160,9 @@
      var unshoosh  = unmcont.appendChild(document.createElement('a'));
      unshoosh.setAttribute('class', 'section-links');
      unshoosh.href = 'javascript:;';
-     unshoosh.addEventListener('click', (function(c) {
-                                         return function() {
-                                           onUnshooshContact(c);
-                                         };
-                                       })(contact), false);
+     unshoosh.addEventListener('click', function() {
+                                           onUnshooshContact(contact);
+                               }, false);
      unshoosh.appendChild(document.createTextNode('Unshoosh'));
    }
 
@@ -168,10 +176,10 @@
 
    function unshooshContact(contact) {
      var contacts = retrieveShooshedContacts();
-     var unshooshed  = contacts.filter(function(c) {
-                                         return contact != c;
-                                       });
-     storeShooshedContacts(unshooshed);
+     var stillShooshed  = contacts.filter(function(c) {
+                                            return contact != c;
+                                          });
+     storeShooshedContacts(stillShooshed);
    }
 
    function removeFromShooshedDisplayList(contact) {
@@ -243,11 +251,45 @@
    function showShooshedList(toots) {
      retrieveShooshedContacts().forEach(function SMC_addToList(c) {
                                           addContactToShooshedDisplayList(c, getContactImageURL(c));
-                                     });
+                                        });
+     listCreated = true;
    }
 
-   function displayShooshedUserInformation() {
-     $(".is-following > strong").after(" (currently Shooshed)");
+   function onUnshooshContactUserPage(contact) {
+     unshooshContact(contact);
+     makeContactPageShooshable(contact);
+   }
+
+   function onShooshContactUserPage(contact) {
+     shooshContact(contact);
+     makeContactPageShooshable(contact);
+   }
+
+   function makeContactPageShooshable(contact) {
+     var doTheShooshing = $("#do-the-shooshing");
+     if(doTheShooshing.length > 0) {
+       doTheShooshing.empty().remove();
+     }
+
+     var text, fn;
+     if(!isShooshed(contact)) {
+       text = "(Shoosh)";
+       fn   = function() {
+         onShooshContactUserPage(contact);
+       };
+     } else {
+       text = "(Unshoosh)";
+       fn   = function() {
+         onUnshooshContactUserPage(contact);
+       };
+     }
+
+     var isRelationship = $(".is-relationship");
+     doTheShooshing = isRelationship[0].appendChild(document.createElement("a"));
+     doTheShooshing.id = "do-the-shooshing";
+     doTheShooshing.href = "javascript:;";
+     doTheShooshing.addEventListener("click", fn, false);
+     doTheShooshing.innerHTML = text;
    }
 
    // Where the magic happens
@@ -255,8 +297,8 @@
      var toots = getTimeline();
      toots.each(makeShooshable);
      var shooshed = findShooshedInTimeline(contactsInTimeline(toots));
-     shooshed.each(function(c) { sayNoMore(shooshed[c]); });;
-     showShooshedList(toots);
+     shooshed.forEach(function(contact) { sayNoMore(contact); });
+     if(!listCreated) showShooshedList(toots);
    }
 
    // This is incredibly lazy, but here's the gist: I've tried wrapping
@@ -272,20 +314,29 @@
    // time. After that, "Shoosh" links will be placed and tweets removed.
    // It's not elegant or pretty, but hey, help me out if you feel like it.
    var location = realWindow.document.location.href;
-   if(location.match(/http(s)?:\/\/twitter\.com/)) {
+   if(!location.match(/http(s)?:\/\/twitter\.com\/(.+)/)) {
      $("#more").click(function(e) {
                         setTimeout(nowShoosh, 3000);
                       });
-     $("#results_update").click(function(e) {
-                                  setTimeout(nowShoosh, 3000);
-                                });
+     var checkForUpdates = function _nowShooshTimer() {
+       var resultsUpdate = $("#results_update");
+       if(resultsUpdate.css("display") == "none") {
+         setTimeout(_nowShooshTimer, 5000);
+       } else {
+         resultsUpdate.click(function(e) {
+                               setTimeout(nowShoosh, 2000);
+                             });
+         _nowShooshTimer();
+       }
+     };
+     checkForUpdates();
      nowShoosh();
    } else {
      var subUrl = location.split(/http(s)?:\/\/twitter.com\//)[2];
      var parts  = subUrl.split("/");
      if(parts.length == 1) { // Ok, this is probably an user.
        var contact = parts[0];
-       if(isShooshed(contact)) displayShooshedUserInformation();
+       makeContactPageShooshable(contact);
      }
    }
  })(typeof jQuery == "undefined" ? unsafeWindow : window);
