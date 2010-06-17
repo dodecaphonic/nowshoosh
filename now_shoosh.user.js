@@ -1,5 +1,5 @@
-// Now shoosh!, v0.6.2
-// Copyright (c) 2008-2009, Vitor Peres <dodecaphonic@gmail.com>
+// Now shoosh!, v0.6.3
+// Copyright (c) 2008-2010, Vitor Peres <dodecaphonic@gmail.com>
 // Released under the GPL license
 // http://www.gnu.org/copyleft/gpl.html
 // Updated: Thu May 28 20:11:26 2009
@@ -39,17 +39,17 @@
        nowShoosh.addContactToShooshedDisplayList(contact, nowShoosh.getContactImageURL(contact));
      },
      shooshContact: function(contact) {
-       var users = nowShoosh.retrieveShooshedContacts();
-       users.push(contact);
-       nowShoosh.storeShooshedContacts(users);
+       setTimeout(function() {
+                    var users = nowShoosh.retrieveShooshedContacts();
+                    users.push(contact);
+                    nowShoosh.storeShooshedContacts(users);
+                  }, 0);
      },
      sayNoMore: function(contact) {
        nowShoosh.filterTootsFromContact(contact).each(nowShoosh.shooshToot);
      },
      makeShooshable: function(order, toot) {
        if(!nowShoosh.shooshable[toot.id]) {
-         var body = $("#" + toot.id + " > span:eq(1)")[0];
-         var contents = $("#" + toot.id + " > span:eq(1) > span:eq(0)")[0];
          var linkList = $("#" + toot.id + " > span:eq(1) > ul")[0];
          var shooshList = linkList.appendChild(document.createElement("li"));
          var container = shooshList.appendChild(document.createElement('span'));
@@ -57,19 +57,30 @@
          shoosh.href = 'javascript:;';
          shoosh.appendChild(document.createTextNode("Shoosh"));
          //shoosh.style.fontSize = 'small';
-         shoosh.class = 'reply';
+         shoosh.className = 'reply';
          shoosh.style.paddingLeft = '10px';
-         shoosh.addEventListener('click', (function(a) {
-                                             return function() { nowShoosh.onShooshContact(a); };
-                                           })(nowShoosh.getAuthorName(toot)), false);
+         $(shoosh).click((function(a) {
+                            return function() {
+                              nowShoosh.onShooshContact(a);
+                              return false;
+                            };
+                          })(nowShoosh.getAuthorName(toot)));
          nowShoosh.shooshable[toot.id] = true;
        }
      },
-     getAuthorElement: function(toot) {
-       return $("#" + toot.id + " > span:eq(1) > strong > a")[0];
-     },
      getAuthorName: function(toot) {
-       return nowShoosh.getAuthorElement(toot).innerHTML;
+       var el = $("#" + toot.id + " > span:eq(1) > span:eq(0) > strong > a");
+       if(el.length > 0) {
+         return el[0].innerHTML;
+       } else {
+         el = $("#" + toot.id + " > span:eq(1) > strong > a");
+         if(el.length > 0) {
+           return el[0].innerHTML;
+         } else {
+           return "bogus"; // frankly, this shouldn't be here: it's a quick fix
+           // for an ugly "undefined" situation
+         }
+       }
      },
      retrieveShooshedContacts: function() {
        var users = GM_getValue('shooshedContacts', null);
@@ -125,11 +136,13 @@
        nowShoosh.unshooshContact(contact);
      },
      unshooshContact: function(contact) {
-       var contacts = nowShoosh.retrieveShooshedContacts();
-       var stillShooshed  = contacts.filter(function(c) {
-                                              return contact != c;
-                                            });
-       nowShoosh.storeShooshedContacts(stillShooshed);
+       setTimeout(function() {
+                    var contacts = nowShoosh.retrieveShooshedContacts();
+                    var stillShooshed  = contacts.filter(function(c) {
+                                                           return contact != c;
+                                                         });
+                    nowShoosh.storeShooshedContacts(stillShooshed);
+                  }, 0);
      },
      removeFromShooshedDisplayList: function(contact) {
        var entries = $("#shooshed_list > tr");
@@ -193,10 +206,12 @@
        return img;
      },
      showShooshedList: function(toots) {
-       nowShoosh.retrieveShooshedContacts().forEach(function SMC_addToList(c) {
-                                            nowShoosh.addContactToShooshedDisplayList(c, nowShoosh.getContactImageURL(c));
-                                          });
-       nowShoosh.listCreated = true;
+       setTimeout(function() {
+                    nowShoosh.retrieveShooshedContacts().forEach(function SMC_addToList(c) {
+                      nowShoosh.addContactToShooshedDisplayList(c, nowShoosh.getContactImageURL(c));
+                    });
+                    nowShoosh.listCreated = true;
+                  }, 0);
      },
      onUnshooshContactUserPage: function(contact) {
        nowShoosh.unshooshContact(contact);
